@@ -1,0 +1,218 @@
+package jsonproject;
+
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
+import java.lang.reflect.TypeVariable;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+
+/**
+ * 使用反射得到对象的json
+ * 
+ * @author Administrator
+ *
+ */
+public class MainClass {
+
+	public static final String jsonStr = "{\"pvName\":\"pvName\",\"pvPassWord\":\"pvPwd\",\"pbNoSetGetMethod\":\"pvNoMethod\",\"pbInt\":1,\"pbLong\":200000,\"pbDouble\":3.14,\"pbBool\":true,\"pbInteger\":\"2\",\"pbLongOb\":\"3000000\",\"pbDoubleOb\":\"343.34234324\",\"pbBoolean\":\"true\",\"pbSubClass\":{\"subPvName\":\"subPvName value\",\"subPvPassWord\":\"subPvPassWord\"},\"sbModelList\":[{\"sbStr\":\"subModelClass\"}]}";
+
+	public static void main(String[] args) {
+		ModelClass modelClass = new ModelClass();
+		modelClass.setPvName("pvName");
+		modelClass.setPvPassWord("pvPwd");
+		modelClass.pbNoSetGetMethod = "pvNoMethod";
+		String jsonString = parseToJson(modelClass);
+		System.out.print("modelClass jsonStr " + jsonString);
+
+		System.out.println("\n String type " + String.class.getTypeName());
+
+		// JsonToObject.getObjectFromJson(ModelClass.class, jsonStr);
+
+		// 泛型在编译以后会被抹除，所以实际的list实例无法直接获取到泛型
+
+		ArrayList<ModelClass> list = new ArrayList<ModelClass>();
+		list.add(new ModelClass());
+//		
+//		Field[] declaredFields = list.getClass().getDeclaredFields();
+//		for (Field type : declaredFields) {
+//			System.out.println("list declaredFields type " + type.getName() +" ----------------------");
+//			Type genericSuperclass = type.getType().getGenericSuperclass();
+//			System.out.println("\n type genericSuperclass " + genericSuperclass.getTypeName());
+//			if (genericSuperclass instanceof ParameterizedType) {
+//				Type[] actualTypeArguments = ((ParameterizedType) genericSuperclass).getActualTypeArguments();
+//				for (Type genericType : actualTypeArguments) {
+//					System.out.println(" genericType " + genericType.getTypeName());
+//				}
+//			}
+//			System.out.println("\n ---------------------- " );
+//			
+//		}
+		
+		// list.getClass().getTypeName();
+		TypeVariable<?>[] typeParameters = list.getClass().getTypeParameters();
+		for (Type type : typeParameters) {
+			System.out.println("list generic type " + type.getTypeName());
+		}
+
+		Type genericSuperclass = list.getClass().getClass().getGenericSuperclass();
+		System.out.println(" genericInterfaces " + genericSuperclass);
+
+		if (genericSuperclass instanceof ParameterizedType) {
+			Type[] actualTypeArguments = ((ParameterizedType) genericSuperclass).getActualTypeArguments();
+			for (Type type : actualTypeArguments) {
+				System.out.println(" type " + type.getTypeName());
+
+			}
+		}
+		List<ModelClass> lst = new ArrayList<ModelClass>();
+		Type genType = lst.getClass().getGenericSuperclass();
+		System.out.println(" genType " + genType);
+
+		if (ParameterizedType.class.isInstance(genType)) {
+			ParameterizedType parameterizedType = (ParameterizedType) genType;
+			System.out.println(" templatClazz " + parameterizedType.getActualTypeArguments()[0]);
+		}
+
+	}
+
+	/**
+	 * 转换对象为json
+	 * 
+	 * @param modelClass
+	 * @return
+	 */
+	public static String parseToJson(Object modelClass) {
+
+		if (modelClass == null) {
+			return null;
+		}
+
+		Class<?> class1 = modelClass.getClass();
+		StringBuilder sb = new StringBuilder();
+		List<Field> parseFields = getParseFields(class1);
+		sb = addObjectToJson(parseFields, class1, modelClass);
+		return sb.toString();
+	}
+
+	/**
+	 * 获取所有成员变量
+	 * 
+	 * @param aClass
+	 * @return
+	 */
+	public static List<Field> getParseFields(Class<?> aClass) {
+		List<Field> resultFields = new ArrayList<Field>();
+		// 所有定义的成员变量
+		Field[] originFiles = aClass.getDeclaredFields();
+
+		// 如果递归到Object，则停止递归并返回
+		if (aClass.getSuperclass() != null) {
+			for (Field field : originFiles) {
+				// 判断是否是final
+				if (Modifier.isFinal(field.getModifiers()))
+					continue;
+				resultFields.add(field);
+			}
+			// 获取父类的成员
+			resultFields.addAll(getParseFields(aClass.getSuperclass()));
+		}
+
+		return resultFields;
+	}
+
+	/**
+	 * 转换对象至Json
+	 */
+	public static StringBuilder addObjectToJson(List<Field> fiels, Class<?> aClass, Object obj) {
+		StringBuilder stringBuilder = new StringBuilder();
+		stringBuilder.append("{");
+		if (fiels != null && !fiels.isEmpty()) {
+			for (Field field : fiels) {
+				String fieldName = field.getName();
+				// 优先使用成员变量的get方法来获取值
+				String methodGetStr = "get" + fieldName.substring(0, 1).toUpperCase() + fieldName.substring(1);
+				Method method = null;
+				String valueStr = "";
+				/*
+				 * try { // 无参方法 method = aClass.getMethod(methodGetStr);
+				 * method.setAccessible(true); valueStr = (String)
+				 * method.invoke(obj);
+				 * 
+				 * 
+				 * // 判断实际类型转换为字符 // String // Integer // Double // Object //
+				 * 表示基本类型Int
+				 * 
+				 * } catch (NoSuchMethodException | SecurityException |
+				 * IllegalAccessException | IllegalArgumentException |
+				 * InvocationTargetException e) { e.printStackTrace(); } finally
+				 * { }
+				 */
+				valueStr = getValueStrByType(field, obj);
+				// 拼接
+				stringBuilder.append("\"" + fieldName + "\":" + valueStr + ",");
+			}
+		}
+		stringBuilder.delete(stringBuilder.length() - 1, stringBuilder.length());
+		stringBuilder.append("}");
+		return stringBuilder;
+	}
+
+	private static String getValueStrByType(Field field, Object obj) {
+		String valueStr = "";
+		try {
+			field.setAccessible(true);
+
+			if (Integer.TYPE.getName().equals(field.getType().getName())) {
+				valueStr = (int) field.get(obj) + "";
+			} else if (Long.TYPE.getName().equals(field.getType().getName())) {
+				valueStr = (long) field.get(obj) + "";
+			} else if (Double.TYPE.getName().equals(field.getType().getName())) {
+				valueStr = (double) field.get(obj) + "";
+			} else if (Integer.class.getName().equals(field.getType().getName())) {
+				valueStr = "\"" + (int) field.get(obj) + "\"";
+			} else if (Long.class.getName().equals(field.getType().getName())) {
+				valueStr = "\"" + field.get(obj) + "\"";
+			} else if (Double.class.getName().equals(field.getType().getName())) {
+				valueStr = "\"" + field.get(obj) + "\"";
+			} else if (String.class.getName().equals(field.getType().getName())) {
+				valueStr = "\"" + (String) field.get(obj) + "\"";
+			} else if (Boolean.class.getName().equals(field.getType().getName())) {
+				valueStr = "\"" + field.get(obj) + "\"";
+			} else if (Boolean.TYPE.getName().equals(field.getType().getName())) {
+				valueStr = (boolean) field.get(obj) + "";
+			} else if (List.class.getName().equals(field.getType().getName())) {
+				// Type genericType = field.getGenericType();
+				// if(genericType instanceof ParameterizedType){
+				// Type[] actualTypeArguments =
+				// ((ParameterizedType)genericType).getActualTypeArguments();
+				// if(actualTypeArguments!=null&&actualTypeArguments.length!=0){
+				// Class<?> type= (Class<?>)actualTypeArguments[0];
+				//
+				// }
+				// }
+
+				Iterator<?> iterator = ((List<?>) field.get(obj)).iterator();
+				while (iterator.hasNext()) {
+					valueStr += parseToJson(iterator.next()) + ",";
+				}
+				if (valueStr != null && valueStr.length() != 0) {
+					valueStr = valueStr.substring(0, valueStr.length() - 1);
+				}
+				// 数组类型
+				valueStr = "[" + valueStr + "]";
+
+			} else {
+				// 其他的识别为Object类型
+				valueStr = parseToJson(field.get(obj));
+			}
+		} catch (IllegalArgumentException | IllegalAccessException e1) {
+			e1.printStackTrace();
+		}
+		return valueStr;
+	}
+
+}

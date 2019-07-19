@@ -1,0 +1,9 @@
+package jni_test;
+
+public class jni_test_entry {
+
+	// 声明本地方法
+	public static native String getStringFromC();
+	
+	public static void main(String[] args);
+}

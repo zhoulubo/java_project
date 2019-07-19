@@ -1,0 +1,39 @@
+package jni_test;
+
+public class JniTestEntry {
+	public String strField = "javaField";
+	public static String staticField = "javaStaticFiled";
+	
+	static {
+		System.loadLibrary("Project1");
+	}
+	
+	// 声明本地方法
+	// 要使用javah生成头文件
+	// 执行命令要在java的外目录执行，
+	// D:\WorkSpaceEclipse\jni_test\src> javah jni_test.jni_test_entry
+	public static native String getStringFromC();
+	
+	// 非静态方法
+	public native String nativeMethodAccessJavaField();
+	
+
+	
+	public static void main(String[] args){
+		String str = getStringFromC();
+		
+		System.out.println("java call c getStringFromC : " + str);
+		System.out.println("java staticField change to : " + staticField);
+		
+		JniTestEntry nativeMethodAccessJavaField = new JniTestEntry();
+		
+		nativeMethodAccessJavaField.nativeMethodAccessJavaField();
+		String strField2 = nativeMethodAccessJavaField.strField;
+		
+	}
+	
+
+	
+	
+	
+}

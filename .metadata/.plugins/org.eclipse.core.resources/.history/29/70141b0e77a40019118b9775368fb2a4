@@ -1,0 +1,34 @@
+package proxyproject;
+
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Method;
+import java.lang.reflect.Proxy;
+
+public class Main {
+	
+	public static void main(String[] args) {
+		
+		
+		
+		
+	}
+	
+	public static void dynamicProcy(){
+		ProxySb subject = new ProxySb();
+		
+		// 动态代理
+		MyInvocationHandler invocationHandler = new MyInvocationHandler();
+		
+		ProxySb newProxyInstance = (ProxySb) Proxy.newProxyInstance(
+				Thread.currentThread().getContextClassLoader()
+				, subject.getClass().getInterfaces(), invocationHandler); 
+		
+		newProxyInstance.request();
+	} 
+	
+	public static void staticProcy(){
+		
+	}
+	
+
+}

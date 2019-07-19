@@ -1,0 +1,9 @@
+package proxyproject;
+
+public class Proxy implements ProxyInterface{
+
+	public void request() {
+		System.out.println("request Subject");
+	}
+
+}
